@@ -89,3 +89,269 @@ ggplot() +
 We can see from the graph that "Temperature in Celsius" appears to have the least seasonal trend.
 
 ## **Problem 2 - OOP Programming**
+
+Create a class to represent a polynomial expression (such as $7x^3−3x+2$) called `poly`. Do this using S4.
+
+a.  For the `poly` class, define the following:
+
+    -   A constructor
+
+    -   A validator
+
+    -   A `show` method
+
+    -   Addition and subtraction
+
+Before I start this problem, I want to make two things clear: 1) I used ChatGPT to give me hints for specific parts (but didn't have it write the whole thing for me - honestly, this was really helpful) and 2) I discussed my solution with Hood Ahmed who also provided comments, some of which I adapted.
+
+Now, first, I want to define my class. I am going to define the `degree` of the polynomial and the number of `coefficients` because those are first things I think about when I think about a polynomial. I am going to force those to be numeric in the class:
+
+```{r}
+setClass("poly", 
+         slots = c(coefficients = "numeric", powers = "numeric"))
+```
+
+Second, the HW asks us to create a constructor for this class. Let's do that:
+
+```{r}
+my_poly <- function(coefficients, exponents) {
+  #STEP 1: we're going to create a dataframe here to store the exponents and coefficients. We    want to   do this for ease of adding like terms(which I was having trouble with in a previous   approach)
+  my_df <- data.frame(coefficients = coefficients, exponents = exponents)
+  
+  #STEP 2: now let's gather coefficients that share the same exponents. This step is thinking    ahead to the addition and subtraction part where we will have to do this. Recall that you are   choosing to organize it in a data frame because previously, you were trying to add like terms   from a string, and the code was not working. 
+  
+  #STEP 2 (cont.): With that in mind, what the code below is going to do is add coefficients     based on the exponents column of the data frame you created. In particular, that is done by    the "coefficients ~ exponents". The "aggregate function is telling us we want to aggregate,    this "coefficients ~ exponents" is telling us how we want to aggregate (coefficients by        exponents) and the 'sum' argument is telling us what kind of aggregation we want to do
+  
+  my_df <- aggregate(coefficients ~ exponents, data = my_df, sum)
+  my_df <- my_df[order(-my_df$exponents),]
+  
+  #STEP 3: now I want to create my polynomial itself from what's contained in the dataframe. TO   do that, I am going to use the 'new' function to create a new instance in my poly class        defined in the previous chunk:
+  
+  new("poly", coefficients = my_df$coefficients, powers = my_df$exponents)
+}
+```
+
+Third, the question asks us to create a validator. The way I've set this up brings to mind two things that we should be validating: 1) that the degree of the polynomial is one less than the number of coefficients and 2) that all inputs are numeric. Let's try to write a function that does that for us. Note that I am using `setValidity` to define this validator function as part of the "poly" class:
+
+```{r}
+setValidity("poly", function(polynomial){
+  if(!(is.numeric(polynomial@powers)  && is.numeric(polynomial@coefficients))) {
+    return("The degree and coefficients of the polynomial must be numbers")
+  }
+  if (length(polynomial@coefficients) != length(polynomial@powers)) {
+    return("Number of powers and coefficients should be the same")
+  }
+  NULL # nothing is returned if everything is OK
+}
+)
+```
+
+Fourth, the question asks for a `show` method. Let's deal with that now:
+
+```{r}
+setMethod("show", signature = "poly", function(poly_object) {
+  org_terms <- mapply(function(coef, exponent) { #NTS: apply function to each of the terms of coef   and power
+  term <- "" #NTS: initialize "term" as an empty string
+  if (coef != 0) {#NTS: if  coef is not equal to 0, we're going to do what's in the brackets  
+    sign <- ifelse(coef >= 0, " + ", " - ") #NTS: straightforward
+    abs_coef <- abs(coef) #NTS: straightforward
+    
+    #NTS: have to account for coefficient dependent on the power
+    if (exponent == 0) {  
+        term <- paste0(abs_coef)
+    } else if (exponent == 1) {  
+        term <- paste0(abs_coef, "x")
+    } else {  # Regular format for other powers
+        term <- paste0(abs_coef, "x^", exponent)
+    }
+  
+    if (!identical(terms, character(0))) {#NTS: this is tough - it's checking if there are         terms in the function itself (as it goes through the coeffs and exponents) and if there        are, it gives us the term preceded by the appropriate sign ("+" or "-")
+    term <- paste0(sign, term)
+      }
+    } # NTS: this ends the original if statement if (coef != 0)
+    term #NTS: this returns the formatted term for the current coefficient and exponent
+  }, poly_object@coefficients, poly_object@powers, SIMPLIFY = FALSE)  
+  
+  org_terms <- org_terms[org_terms != ""] #filtering out any empty terms from the list of terms
+  polynomial_string <- paste(org_terms, collapse = "")
+  
+  cat(polynomial_string, "\n")
+})
+```
+
+Fifth, let's do the addition:
+
+```{r}
+setMethod("+", signature = c("poly", "poly"), function(e1, e2) {
+  new_poly_coeffs <- c(e1@coefficients, e2@coefficients)
+  new_poly_powers <- c(e1@powers, e2@powers)
+  my_poly(new_poly_coeffs, new_poly_powers)
+
+})
+```
+
+Sixth, subtraction:
+
+```{r}
+setMethod("-", signature = c("poly", "poly"), function(e1, e2) {
+  new_poly_coeffs <- c(e1@coefficients, -e2@coefficients)
+  new_poly_powers <- c(e1@powers, e2@powers)
+  my_poly(new_poly_coeffs, new_poly_powers)
+})
+```
+
+b).
+
+Use your poly class to run the following code:
+
+    p1 <- make_poly("3x^2 + 2")
+    p2 <- make_poly("7x^3 - 2x^2 - x + 17")
+    p1
+    p2
+    p1 + p2
+    p1 - p2
+
+So in a follow-up email, Dr. Erickson suggested that we could use slightly different constructors. What I am going to do is input values that will generate the same polynomials as above into my constructor and see what results I get
+
+```{r}
+p1 <- my_poly(c(3,2), c(2,0))
+p2 <- my_poly(c(7,-2,-1,17), c(3,2,1,0))
+p1
+p2
+p1+p2
+p1-p2
+```
+
+Great!
+
+## **Problem 3 - data.table**
+
+Repeat [Problem 1 from PS04](https://dept.stat.lsa.umich.edu/~jerrick/courses/stat506/ps04.html#problem-1---tidyverse) using `data.table`.
+
+Use the **tidyverse** for this problem. In particular, use piping and **dplyr** as much as you are able. **Note**: Use of any deprecated functions will result in a point loss.
+
+Install and load the package [**nycflights13**](https://cran.r-project.org/package=nycflights13).
+
+a.  Generate a table (which can just be a nicely printed tibble) reporting the mean and median departure delay per airport. Generate a second table (which again can be a nicely printed tibble) reporting the mean and median arrival delay per airport. Exclude any destination with under 10 flights. Do this exclusion through code, not manually.
+
+    Additionally,
+
+    -   Order both tables in descending mean delay.
+
+    -   Both tables should use the airport *names* not the airport *codes*.
+
+    -   Both tables should print all rows.
+
+First, let's bring in the relevant libraries - `nycflights13` for the data and `data.table` for the data table:
+
+```{r}
+library(nycflights13)
+library(data.table)
+```
+
+Second, we recall that we are going to have to use the `flights` and `airports` part of the nycflight13 library to answer this question (and ultimately join them). Before doing that, let's just bring them in as data tables.
+
+```{r}
+flights_dt <- as.data.table(flights)
+airports_dt <- as.data.table(airports)
+```
+
+Third, the first part of the question asks us to get the mean and median **departure delay** per airport. We're also told to exclude any destination that has less than 10 flights. To start on this, let's first generate a table that gives us: 1) mean departure delay; 2) median departure delay; and 3) number of flights. I want you to remember (this is for Derek) that Dr. Erickson explained to us in class that a synonym for generating a `list` in data.table is `.()`. So you will see that I am using that below in my table to generate the: 1) mean; 2) median, 3) number of flights by origin. I am doing this for two reasons: first so that we don't have a bunch of NAs when we do the join later, we need to do this aggregation now. Second, we are aggregating by origin because that is the key on which we will perform the aggregation later (and we are interested in departure delay):
+
+```{r}
+dep_delay_dt <- flights_dt[, .(mean_dep_delay = mean(dep_delay, na.rm=TRUE),
+                              median_dep_delay = median(dep_delay, na.rm = TRUE),
+                              num_flights = .N), by = .(origin)]
+```
+
+We're basically done now but the question asks us to list the full name of the `origin` airport and not just the code, so we need to bring that information in from the `airports_dt`. Let's do that:
+
+```{r}
+dep_delay_apname <- dep_delay_dt[airports_dt, .(airport_name = airports_dt$name, mean_dep_delay, median_dep_delay), on = .(origin = faa)]
+```
+
+But we see that this includes all of the airports, including those with no departures from them. We want to eliminate those so let's do that:
+
+```{r}
+dep_delay_apname <- dep_delay_apname[!is.na(mean_dep_delay) & !is.na(median_dep_delay)]
+```
+
+And lastly, we want to order in descending mean delay:
+
+```{r}
+dep_delay_apname <- dep_delay_apname[order(-mean_dep_delay)]
+print(dep_delay_apname)
+```
+
+OK, now we need to go through a similar exercise for destinations.
+
+First, let's create the arrival delay data table:
+
+```{r}
+arr_delay_dt <- flights_dt[, .(mean_arr_delay = mean(arr_delay, na.rm=TRUE),
+                              median_arr_delay = median(arr_delay, na.rm = TRUE),
+                              num_flights = .N), by = .(dest)]
+```
+
+Second, and in contrast to above, there are three cases here where the number of flights is less than $10$ so we need to remove them:
+
+```{r}
+arr_delay_dt <- arr_delay_dt[num_flights >= 10]
+```
+
+Good, with this code our data table decreased by $3$. Now we just need to do the join to get the name of the airport as we did before:
+
+```{r}
+arr_delay_apname <- arr_delay_dt[airports_dt, .(airport_name = airports_dt$name, mean_arr_delay, median_arr_delay), on = .(dest = faa)]
+```
+
+Now let's eliminate the NAs and then order by mean descending:
+
+```{r}
+arr_delay_apname <- arr_delay_apname[!is.na(mean_arr_delay) & !is.na(median_arr_delay)]
+arr_delay_apname <- arr_delay_apname[order(-mean_arr_delay)]
+print(arr_delay_apname)
+```
+
+b\. How many flights did the aircraft model with the fastest average speed take? Produce a tibble with 1 row, and entries for the model, average speed (in MPH) and number of flights.
+
+For this part, we're going to need the `flights` and `planes` data sets. So first, let's call them:
+
+```{r}
+flights_dt <- as.data.table(flights)
+planes_dt <- as.data.table(planes)
+```
+
+Second, let's perform the join on the common key `tailnum`:
+
+```{r}
+plane_speed <- flights_dt[planes_dt, on = "tailnum"]
+```
+
+Third, let's create a `mph` column so we can find the fastest plane:
+
+```{r}
+plane_speed <- plane_speed[, air_hours := air_time/60]
+plane_speed <- plane_speed[, mph := distance/air_hours]
+```
+
+Fourth, we want to group by plane model type and get average speed and number of flights taken:
+
+```{r}
+plane_speed_dt <- plane_speed[, .(mean_mph = mean(mph, na.rm=TRUE),
+                              num_flights = .N), by = .(model)]
+```
+
+Fifth, let's sort this descending:
+
+```{r}
+plane_speed_dt <- plane_speed_dt[order(-mean_mph)]
+```
+
+And finally, we just want the one row with the fastest plane and the number of flights it has taken:
+
+```{r}
+plane_speed_dt[1]
+```
+
+So we see that the fastest aircraft model (777-222)\_ took four flights at an average speed of $482.6254$ .
