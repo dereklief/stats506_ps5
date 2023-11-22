@@ -1,5 +1,5 @@
 ---
-title: "PS_5"
+title: "Problem Set 5"
 format: html
 editor: visual
 ---
@@ -23,21 +23,21 @@ library(scales)
 df <- nnmaps
 df$temp_cels <- (df$temp - 32) * (5/9)
 
-df_2 <- df %>% mutate(date = as.POSIXct(date, format = '%Y-%m-%d'), year_2 = format(date, "%Y"), yearmon = format(date, "%Y-%m")) %>%
-  group_by(year, yearmon, month, season) %>%
-  summarize(mean_cels = mean(temp_cels))
-df_2$yearmon_2 <- paste0(df_2$yearmon, '-01')
-df_2$yearmon_2 <- as.Date(df_2$yearmon_2, format = '%Y-%m-%d')
-df_2$yearmon <- (paste("01-","",df_2$yearmon))
+# To ensure that the months appear in the right way on the graph, let's impose an order on it:
+df$month <- factor(df$month, levels = c("Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+                                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))
 
-ggplot(df_2, aes(x = yearmon_2, y = mean_cels, color = season, group = season)) +
+df_2 <- df %>% 
+  group_by(month, season) %>%
+  summarize(mean_cels = mean(temp_cels, na.rm=TRUE))
+  
+ggplot(df_2, aes(x = month, y = mean_cels, color = season, group = season)) +
   geom_point() +
   geom_line() +
   ggtitle("Mean Monthly Temperature in Celsius") +
   scale_x_discrete(name = "Month-Year") +
   scale_color_discrete(name = "Seasons") +
-  scale_x_date(date_breaks = '1 month', date_labels = "%b-%Y") +
-  xlab("Month-Year") +
+  xlab("Month") +
   ylab("Temperature in Celsius") +
   theme(plot.title = element_text(color="black", size=12, face="bold"),
         axis.title.x = element_text(color="black", size=10, face="plain"),
@@ -50,43 +50,28 @@ ggplot(df_2, aes(x = yearmon_2, y = mean_cels, color = season, group = season)) 
 b\. Produce a similar plot with four sets of lines: mean monthly temperature in celsius, mean montly O3, mean monthly PM10, and mean monthly dewpoint. Figure out a way to distinguish between the four lines. Again, make sure the plot is publication-ready (clean and clear labels). Use the plot to answer the following question:
 
 ```{r}
-df_3 <- df %>% mutate(date = as.POSIXct(date, format = '%Y-%m-%d'), year_2 = format(date, "%Y"), yearmon = format(date, "%Y-%m")) %>%
-  group_by(year, yearmon, month, season) %>%
+df_3 <- df %>% group_by(month, season) %>%
   summarize(mean_cels = mean(temp_cels, na.rm = TRUE),
             mean_o3 = mean(o3, na.rm = TRUE),
             mean_pm10 = mean(pm10, na.rm = TRUE),
             mean_dp = mean(dewpoint, na.rm = TRUE))
 
-df_3$yearmon_3 <- paste0(df_3$yearmon, '-01')
-df_3$yearmon_3 <- as.Date(df_3$yearmon_3, format = '%Y-%m-%d')
+df_3_long <- tidyr::gather(df_3, key = "Variable", value = "Value", -month, -season)
 
-ggplot() +
-  geom_line(df_3, mapping = aes(x=yearmon_3, y = mean_cels, color = "red4")) +
-  geom_point(df_3, mapping = aes(x=yearmon_3, y = mean_cels, color = "red4")) +
-  geom_line(df_3, mapping = aes(x=yearmon_3, y = mean_o3, color = "blue4")) +
-  geom_point(df_3, mapping = aes(x=yearmon_3, y = mean_o3, color = "blue4")) +
-  geom_line(df_3, mapping = aes(x=yearmon_3, y = mean_pm10, color = "green4")) +
-  geom_point(df_3, mapping = aes(x=yearmon_3, y = mean_pm10, color = "green4")) +
-  geom_line(df_3, mapping = aes(x=yearmon_3, y = mean_dp, color = "orange2")) +
-  geom_point(df_3, mapping = aes(x=yearmon_3, y = mean_dp, color = "orange2")) +
-  facet_wrap(~season) +
-  scale_x_date(date_breaks = '2 months', date_labels = "%b-%Y") +
-  ggtitle("Monthly Means of Temperature, O3, PM10 and Dew Point") +
-  xlab("Month-Year") +
-  ylab("Averages") +
-  theme(plot.title = element_text(color="black", size=12, face="bold"),
-        axis.title.x = element_text(color="black", size=10, face="plain"),
-        axis.title.y = element_text(color="black", size=10, face="plain"),
-        axis.line = element_line(colour = "black"),
-        axis.text.x = element_text(size = 6, angle = 90)) +
-  scale_color_identity(name = "Type",
-                       labels = c("Temp in Cels","O3","PM10","Dew Point"),
-                       guide = "legend")
+# Create the plot
+ggplot(df_3_long, aes(x = month, y = Value, group = Variable, color = Variable)) +
+  geom_point() +
+  geom_line() +
+  labs(title = "Monthly Averages by Temp in Celsius, O3, PM10, and Dewpoint",
+       x = "Month",
+       y = "Averages",
+       color = "Variable") +
+  theme_minimal()
 ```
 
 **\"Which of the four variables seems to have the least seasonal trend?\"**
 
-We can see from the graph that "Temperature in Celsius" appears to have the least seasonal trend.
+We can see from the graph that "PM" appears to have the least seasonal trend.
 
 ## **Problem 2 - OOP Programming**
 
